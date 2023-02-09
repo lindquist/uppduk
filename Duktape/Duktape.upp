@@ -1,0 +1,13 @@
+uses
+	Core;
+
+library
+	duktape;
+
+file
+	Duktape.h,
+	Duktape.cpp,
+	Util.cpp,
+	Math.cpp,
+	src.tpp;
+

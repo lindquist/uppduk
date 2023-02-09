@@ -1,0 +1,10 @@
+uses
+	Core,
+	Duktape;
+
+file
+	BindFunc1.cpp;
+
+mainconfig
+	"" = "";
+

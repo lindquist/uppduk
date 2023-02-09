@@ -1,0 +1,10 @@
+uses
+	Core,
+	Duktape;
+
+file
+	CallJS1.cpp;
+
+mainconfig
+	"" = "";
+

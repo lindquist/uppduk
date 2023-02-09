@@ -1,0 +1,10 @@
+uses
+	Core,
+	Duktape;
+
+file
+	Print1.cpp;
+
+mainconfig
+	"" = "";
+
