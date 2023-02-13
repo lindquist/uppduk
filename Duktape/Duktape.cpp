@@ -111,15 +111,40 @@ void DukPush(duk_context *ctx, const Upp::Value& v)
         duk_push_number(ctx, double(v));
     else if (IsString(v))
         duk_push_string(ctx, ~v.ToString());
+    else if (IsValueArray(v))
+        DukPush(ctx, ValueArray(v));
+    else if (IsValueMap(v))
+        DukPush(ctx, ValueMap(v));
     else
         duk_push_string(ctx, ~Format("[Value(%s)]", ~v.ToString()));
 }
 
+void DukPush(duk_context *ctx, const Upp::ValueMap& map)
+{
+	auto idx = duk_push_object(ctx);
+	int N = map.GetCount();
+	for (int i = 0; i < N; ++i) {
+		auto& key = map.GetKey(i);
+		DukPush(ctx, key);
+		auto& val = map.GetValue(i);
+		DukPush(ctx, val);
+		duk_put_prop(ctx, idx);
+	}
+}
+
+void DukPush(duk_context *ctx, const Upp::ValueArray& array)
+{
+	auto idx = duk_push_array(ctx);
+	int N = array.GetCount();
+	for (int i = 0; i < N; ++i) {
+		DukPush(ctx, array.Get(i));
+		duk_put_prop_index(ctx, idx, i);
+	}
+}
+
 void DukGet(duk_context *ctx, int idx, Upp::Value& out)
 {
-    auto ty = duk_get_type(ctx, idx);
-    switch (ty) {
-    case DUK_TYPE_NUMBER: {
+	if (duk_is_number(ctx, idx)) {
         duk_double_t number = duk_get_number(ctx, idx);
         duk_double_t intPart;
         duk_double_t fracPart = std::modf(number, &intPart);
@@ -127,23 +152,57 @@ void DukGet(duk_context *ctx, int idx, Upp::Value& out)
             out = int(intPart);
         else // real
             out = number;
-        break;
     }
-    case DUK_TYPE_STRING:
+    else if (duk_is_string(ctx, idx))
         out = String(duk_get_string(ctx, idx));
-        break;
-    case DUK_TYPE_BOOLEAN:
+	else if (duk_is_boolean(ctx, idx))
         out = duk_get_boolean(ctx, idx) != 0;
-        break;
-    case DUK_TYPE_NULL:
+    else if (duk_is_null(ctx, idx))
         out = Null;
-        break;
-    case DUK_TYPE_UNDEFINED:
+    else if (duk_is_undefined(ctx, idx))
         out = Value();
-        break;
-    default:
-        out = duk_safe_to_string(ctx, idx);
+    else if (duk_is_array(ctx, idx)) {
+        ValueArray array;
+        DukGet(ctx, idx, array);
+        out = pick(array);
     }
+    else if (duk_is_object(ctx, idx)) {
+        ValueMap map;
+        DukGet(ctx, idx, map);
+        out = pick(map);
+    }
+    else {
+        duk_dup(ctx, idx);
+        String str = duk_safe_to_string(ctx, -1);
+        duk_pop(ctx);
+        out = ErrorValue(str);
+    }
+}
+
+void DukGet(duk_context *ctx, int idx, ValueMap& out)
+{
+	ASSERT(duk_is_object(ctx, idx)); // maybe use duk_is_object_coercible?
+	ValueMap map;
+	duk_enum(ctx, idx, 0); // [...enum
+	while (duk_next(ctx, -1 , 1)) { // [...enum key value
+		map.Add(DukGetArg<Value>(ctx, -2), DukGetArg<Value>(ctx, -1));
+	    duk_pop_2(ctx); // [..enum
+	}
+	duk_pop(ctx); // [...
+	out = pick(map);
+}
+
+void DukGet(duk_context *ctx, int idx, ValueArray& out)
+{
+	ASSERT(duk_is_array(ctx, idx));
+	auto N = duk_get_length(ctx, idx);
+	ValueArray array;
+	array.SetCount(N);
+	for (int i = 0; i < N; ++i) {
+		duk_get_prop_index(ctx, idx, i);
+		out.Set(i, DukGetArg<Value>(ctx, -1));
+		duk_pop(ctx);
+	}
 }
 
 //----------------------------------------------------------------------------
@@ -215,4 +274,3 @@ bool Duktape::BindGlobal(duk_c_function dukfunc, int nparams, const char* name, 
         return true;
     }
 }
-

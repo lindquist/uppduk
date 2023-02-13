@@ -46,6 +46,8 @@ inline void DukPush(duk_context *ctx, const Upp::String& s) {
     duk_push_string(ctx, ~s);
 }
 
+void DukPush(duk_context *ctx, const Upp::ValueMap& v);
+void DukPush(duk_context *ctx, const Upp::ValueArray& v);
 void DukPush(duk_context *ctx, const Upp::Value& v);
 
 // duk_to_*
@@ -81,6 +83,8 @@ inline void DukGet(duk_context *ctx, int idx, Upp::String& out) {
 }
 
 void DukGet(duk_context *ctx, int idx, Upp::Value& out);
+void DukGet(duk_context *ctx, int idx, Upp::ValueMap& out);
+void DukGet(duk_context *ctx, int idx, Upp::ValueArray& out);
 
 // helpers for bindings
 
